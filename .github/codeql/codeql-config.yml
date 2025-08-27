@@ -1,9 +1,0 @@
-# This file contains configuration for CodeQL, used by the security-scan.yml workflow
-paths-ignore:
-  - '**/test/**'
-  - '**/tests/**'
-  - '**/spec/**'
-  - '**/vendor/**'
-  - '**/*.test.rb'
-queries:
-  - uses: security-and-quality
