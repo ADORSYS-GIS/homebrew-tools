@@ -1,4 +1,4 @@
-class Yara < Formula
+class YaraAT454 < Formula
   desc "Malware identification and classification tool"
   homepage "https://github.com/VirusTotal/yara/"
   url "https://github.com/VirusTotal/yara/archive/refs/tags/v4.5.4.tar.gz"

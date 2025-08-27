@@ -1,4 +1,4 @@
-class Suricata < Formula
+class SuricataAT7010 < Formula
   include Language::Python::Virtualenv
 
   desc "Network IDS, IPS, and security monitoring engine"
