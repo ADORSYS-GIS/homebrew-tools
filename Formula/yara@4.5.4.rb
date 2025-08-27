@@ -14,16 +14,6 @@ class YaraAT454 < Formula
     strategy :github_latest
   end
 
-  bottle do
-    sha256 cellar: :any,                 arm64_sequoia: "05e38fe530217dd618458e1e864b88c9e5376a1a620e25b52c45327a2ba5bee0"
-    sha256 cellar: :any,                 arm64_sonoma:  "3eb68c783f2be47824839b7a24d2950945f5c6a6365e856543fa89a22e00ffbc"
-    sha256 cellar: :any,                 arm64_ventura: "2d9d3ab818d55b5ac62615ed701072920575eb76b4705e627987298ed7c73a6a"
-    sha256 cellar: :any,                 sonoma:        "f959e7e5f4ef46b3f184a22e48df80915d2174a9118c7824ee217039cab7eaef"
-    sha256 cellar: :any,                 ventura:       "e60f16545e8349a9267d01b6d0a9218041108fc7f34477670106b9dc49160c28"
-    sha256 cellar: :any_skip_relocation, arm64_linux:   "8d44b7e4a3f0bd5fca8274f440ee09b28b25e0b410f0f2d9a83ce02c2ecf5cb1"
-    sha256 cellar: :any_skip_relocation, x86_64_linux:  "9eb5a6a26ded5e51d4c574bcd60a0a800cdd16749c7789bd625526449ade9332"
-  end
-
   depends_on "autoconf" => :build
   depends_on "automake" => :build
   depends_on "libtool" => :build
