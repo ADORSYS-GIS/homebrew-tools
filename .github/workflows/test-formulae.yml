@@ -1,0 +1,57 @@
+name: Test Formulae
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Formula/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Formula/**'
+
+jobs:
+  test-formulae:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Cache Homebrew Bundler RubyGems
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.set-up-homebrew.outputs.gems-path }}
+          key: ${{ runner.os }}-rubygems-${{ steps.set-up-homebrew.outputs.gems-hash }}
+          restore-keys: ${{ runner.os }}-rubygems-
+
+      - name: Install Homebrew test dependencies
+        run: |
+          brew install brew-test-bot
+
+      - name: Test formulae
+        run: |
+          mkdir -p "$(dirname "$(brew --repo ${{ github.repository }})")"
+          ln -s "$PWD" "$(brew --repo ${{ github.repository }})"
+          
+          # Test each formula individually
+          for formula in Formula/*.rb; do
+            brew test-bot --only-tap-syntax "$formula"
+            brew test-bot --only-formulae "$formula"
+          done
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: brew-test-bot-results
+          path: ~/Library/Logs/Homebrew/

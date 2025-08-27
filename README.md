@@ -28,11 +28,68 @@ brew install ADORSYS-GIS/tools/yara@4.5.4
 
 ## Contributing
 
-1. Fork this repository
-2. Create your feature branch (`git checkout -b feature/my-new-formula`)
-3. Commit your changes (`git commit -am 'Add some formula'`)
-4. Push to the branch (`git push origin feature/my-new-formula`)
-5. Create a new Pull Request
+### Branch Protection Rules
+
+The `main` branch is protected and requires:
+- Successful status checks before merging
+- Pull request review before merging
+- Up-to-date branch before merging
+- Linear history (no merge commits)
+
+### Commit Messages
+
+We follow conventional commits specification. Each commit message should be structured as follows:
+
+```
+type(scope): Subject line in sentence case
+
+Optional body
+```
+
+Types:
+- `fix`: Bug fixes
+- `feat`: New features
+- `chore`: Maintenance tasks
+- `docs`: Documentation changes
+- `style`: Code style changes
+- `refactor`: Code refactoring
+- `deps`: Dependency updates
+- `test`: Test updates
+
+Scopes:
+- `formula`: Changes to formula files
+- `workflow`: CI/CD changes
+- `docs`: Documentation updates
+- `security`: Security-related changes
+
+### Development Setup
+
+To ensure consistent commit messages and maintain code quality, please set up the development environment:
+
+```bash
+# Install Node.js dependencies (one-time setup)
+npm install
+
+# This will automatically set up git hooks
+npm run prepare
+
+# Make the pre-commit check executable
+chmod +x .husky/pre-commit 
+```
+
+After setup, the commit convention will be enforced for all commits, both locally and in PRs.
+
+### Pull Request Process
+
+1. Create a new branch from `main`
+2. Make your changes
+3. Commit your changes (the commit hook will ensure proper commit message format)
+4. Ensure all tests pass locally (`brew test-bot --only-formulae ./Formula/<formula>.rb`)
+5. Create a pull request
+6. Wait for automated checks to pass
+7. Request review
+8. Address any feedback
+9. Your PR will be merged once approved
 
 ## License
 

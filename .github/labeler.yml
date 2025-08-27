@@ -1,0 +1,18 @@
+# Add 'formula' label to any changes in Formula directory
+formula:
+  - Formula/**/*
+
+# Add 'documentation' label to any changes in documentation files
+documentation:
+  - README.md
+  - docs/**/*
+
+# Add 'workflow' label to any changes in GitHub Actions
+workflow:
+  - .github/**/*
+
+# Add 'security' label to any security-related changes
+security:
+  - '**/security*.yml'
+  - '**/security*.yaml'
+  - '**/security*.rb'
