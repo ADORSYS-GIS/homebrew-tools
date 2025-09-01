@@ -142,16 +142,15 @@ jobs:
           echo "## Bottle DSL Blocks" > bottle_blocks.md
           echo "" >> bottle_blocks.md
           
-          # Download the script to generate bottle blocks
-          curl -sL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/generate-bottle-blocks.py > generate-bottle-blocks.py
-          chmod +x generate-bottle-blocks.py
+          # Use the script from the repo
+          chmod +x scripts/generate-bottle-blocks.py
           
           for json_file in release-bottles/*.json; do
             if [ -f "$json_file" ]; then
               formula_name=$(basename "$json_file" .json | sed 's/--.*$//')
               echo "### $formula_name" >> bottle_blocks.md
               echo '```ruby' >> bottle_blocks.md
-              python3 generate-bottle-blocks.py "$json_file" "https://github.com/${{ github.repository }}/releases/download/$RELEASE_TAG" >> bottle_blocks.md
+              python3 scripts/generate-bottle-blocks.py "$json_file" "https://github.com/${{ github.repository }}/releases/download/$RELEASE_TAG" >> bottle_blocks.md
               echo '```' >> bottle_blocks.md
               echo "" >> bottle_blocks.md
             fi

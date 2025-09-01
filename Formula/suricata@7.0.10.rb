@@ -11,7 +11,7 @@ class SuricataAT7010 < Formula
     url "https://suricata.io/download/"
     regex(/href=.*?suricata[._-]v?(\d+(?:\.\d+)+)\.t/i)
   end
-
+  #Dependencies
   depends_on "pkgconf" => :build
   depends_on "rust" => :build
   depends_on "jansson"
