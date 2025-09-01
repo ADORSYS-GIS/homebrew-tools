@@ -1,0 +1,222 @@
+name: Build Bottles
+
+on:
+  pull_request:
+    paths:
+      - 'Formula/*.rb'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Formula/*.rb'
+  workflow_dispatch:
+    inputs:
+      formula:
+        description: 'Formula name (e.g., suricata@7.0.10)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-bottles:
+    strategy:
+      matrix:
+        include:
+          # macOS runners
+          - os: macos-15  # Sequoia (Apple Silicon)
+            name: arm64_sequoia
+          - os: macos-14  # Sonoma (Apple Silicon)
+            name: arm64_sonoma
+          - os: macos-13  # Ventura (Intel)
+            name: ventura
+          - os: macos-13-xlarge  # Ventura (Apple Silicon)
+            name: arm64_ventura
+          - os: macos-12  # Monterey (Intel)
+            name: monterey
+          # Linux runners
+          - os: ubuntu-latest
+            name: x86_64_linux
+          - os: ubuntu-latest
+            name: arm64_linux
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+    name: Build bottle for ${{ matrix.name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Set up ARM64 on Linux
+        if: matrix.arch == 'arm64' && runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Add tap
+        run: |
+          brew tap ${{ github.repository }}
+          brew update
+
+      - name: Determine formulas to build
+        id: formulas
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.formula }}" ]; then
+            echo "formulas=${{ github.event.inputs.formula }}" >> $GITHUB_OUTPUT
+          else
+            # Get changed formula files
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep '^Formula/.*\.rb$' || true)
+            else
+              CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '^Formula/.*\.rb$' || true)
+            fi
+            
+            if [ -z "$CHANGED_FILES" ]; then
+              echo "formulas=" >> $GITHUB_OUTPUT
+            else
+              FORMULAS=""
+              for file in $CHANGED_FILES; do
+                FORMULA_NAME=$(basename "$file" .rb)
+                FORMULAS="$FORMULAS $FORMULA_NAME"
+              done
+              echo "formulas=$FORMULAS" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Build bottles
+        if: steps.formulas.outputs.formulas != ''
+        run: |
+          for formula in ${{ steps.formulas.outputs.formulas }}; do
+            echo "Building bottle for $formula..."
+            
+            # Install dependencies first
+            brew install --only-dependencies "$formula"
+            
+            # Build the formula with bottle flag
+            brew install --build-bottle "$formula"
+            
+            # Create the bottle
+            brew bottle --json --root-url="https://github.com/${{ github.repository }}/releases/download/bottles" "$formula"
+            
+            # Store bottle info
+            mkdir -p bottles
+            mv *.bottle.* bottles/
+            cp *.json bottles/
+          done
+
+      - name: Upload bottles as artifacts
+        if: steps.formulas.outputs.formulas != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottles-${{ matrix.name }}
+          path: bottles/
+
+  upload-bottles:
+    needs: build-bottles
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Needed to create releases and upload artifacts
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-bottles/
+
+      - name: Prepare release
+        id: prepare
+        run: |
+          RELEASE_TAG="bottles-$(date +%Y%m%d-%H%M%S)"
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          
+          # Collect all bottle files
+          mkdir -p release-bottles
+          find all-bottles -name "*.bottle.*" -exec cp {} release-bottles/ \;
+          find all-bottles -name "*.json" -exec cp {} release-bottles/ \;
+          
+          # Generate bottle DSL blocks
+          echo "## Bottle DSL Blocks" > bottle_blocks.md
+          echo "" >> bottle_blocks.md
+          
+          # Use the script from the repo
+          chmod +x scripts/generate-bottle-blocks.py
+          
+          for json_file in release-bottles/*.json; do
+            if [ -f "$json_file" ]; then
+              formula_name=$(basename "$json_file" .json | sed 's/--.*$//')
+              echo "### $formula_name" >> bottle_blocks.md
+              echo '```ruby' >> bottle_blocks.md
+              python3 scripts/generate-bottle-blocks.py "$json_file" "https://github.com/${{ github.repository }}/releases/download/$RELEASE_TAG" >> bottle_blocks.md
+              echo '```' >> bottle_blocks.md
+              echo "" >> bottle_blocks.md
+            fi
+          done
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prepare.outputs.release_tag }}
+          name: Bottles ${{ steps.prepare.outputs.release_tag }}
+          body_path: bottle_blocks.md
+          files: release-bottles/*
+          draft: false
+          prerelease: false
+
+      - name: Update formulas with bottle blocks
+        run: |
+          # This step would ideally update the formula files with the bottle blocks
+          # For now, the bottle blocks are in the release description for manual copying
+          echo "Bottle blocks have been added to the release description."
+          echo "Please manually update your formula files with the appropriate bottle blocks."
+
+  cleanup-old-releases:
+    needs: upload-bottles
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Needed to delete old releases and tags
+    
+    steps:
+      - name: Delete old bottle releases
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const bottleReleases = releases.data
+              .filter(r => r.tag_name.startsWith('bottles-'))
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Keep only the 5 most recent bottle releases
+            for (let i = 5; i < bottleReleases.length; i++) {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: bottleReleases[i].id
+              });
+              
+              // Also delete the tag
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${bottleReleases[i].tag_name}`
+                });
+              } catch (e) {
+                console.log(`Tag ${bottleReleases[i].tag_name} already deleted or not found`);
+              }
+            }
