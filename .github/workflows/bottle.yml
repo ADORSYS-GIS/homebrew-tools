@@ -16,6 +16,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build-bottles:
     strategy:
@@ -117,6 +120,8 @@ jobs:
     needs: build-bottles
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Needed to create releases and upload artifacts
     
     steps:
       - name: Checkout repository
@@ -177,6 +182,8 @@ jobs:
     needs: upload-bottles
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write  # Needed to delete old releases and tags
     
     steps:
       - name: Delete old bottle releases
